@@ -32,9 +32,9 @@ class CreateLogger:
 
         if not logger.handlers:
 
-            logger.setLevel(level = logger.INFO)
+            logger.setLevel(level = logging.INFO)
 
-            file_handler = logging.FileHandler(os.path.abspath(os.path.join(os.path.dirname(__file__), "logs", "logs.txt")))
+            file_handler = logging.FileHandler(os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir, "logs", "logs.txt")))
 
             file_formater = logging.Formatter("%(asctime)s : %(message)s")
 

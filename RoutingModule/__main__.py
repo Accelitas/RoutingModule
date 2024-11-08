@@ -36,17 +36,17 @@ try:
                        IgnoreWarnings  
                       )
     from accelitas_microservices import (
-                                            # run_ailift_microservice,
-                                            # run_apim_microservice,
-                                            # run_authorizer_microservice,
-                                            # run_carl_v2_microservice,
+                                            run_ailift_microservice,
+                                            run_apim_microservice,
+                                            run_authorizer_microservice,
+                                            run_carl_v2_microservice,
                                             # run_datax_microservice,
-                                            # run_pii_microservice, 
-                                            # run_datawire_microservice ,
-                                            # run_telecheck_mi_microservice,
+                                            run_pii_microservice, 
+                                            run_datawire_microservice ,
+                                            run_telecheck_mi_microservice,
                                        ) 
-
-
+except ImportError as error:
+    raise Exception(f"{error}") from None
 
 class RunModule(CreateLogger):
     @classmethod
@@ -103,17 +103,17 @@ class RunModule(CreateLogger):
             logger.info("Stop Executing Carl V2 Micoservice")
             print("Stop Executing Carl V2 Microservice")
 
-        try:
-            logger.info("Start Executing DATAX Microservice")
-            print("Start Executing DATAX Microservice")
-            run_datax_microservice()
-        except Exception as exc:
-            logger.info(exc.__class__.__name__ + "-" + str(exc))
-            print("Exception Occured, While Executing")
-            pass
-        finally:
-            logger.info("Stop Executing DATAX Micoservice")
-            print("Stop Executing DATAX Microservice")
+        # try:
+        #     logger.info("Start Executing DATAX Microservice")
+        #     print("Start Executing DATAX Microservice")
+        #     run_datax_microservice()
+        # except Exception as exc:
+        #     logger.info(exc.__class__.__name__ + "-" + str(exc))
+        #     print("Exception Occured, While Executing")
+        #     pass
+        # finally:
+        #     logger.info("Stop Executing DATAX Micoservice")
+        #     print("Stop Executing DATAX Microservice")
 
         try:
             logger.info("Start Executing PII Microservice")
