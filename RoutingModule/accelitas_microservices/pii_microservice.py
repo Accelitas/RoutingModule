@@ -28,6 +28,7 @@ try:
     import contextlib 
     import urllib.parse
     import pandas as pd
+    import numpy as np
     from functools import lru_cache, wraps
     from IPython.display import display     
 except ImportError as error:
@@ -95,7 +96,7 @@ class PIIMicroservice:
                         f'|spath input=pii_data path="AUDIT RECORD: AI-LIFT.aiLiftRequest.ssn_tin" output=ssn_tin'
                         f'|spath input=pii_data path="AUDIT RECORD: AI-LIFT.aiLiftRequest.state" output=state'
                         f'|spath input=pii_data path="AUDIT RECORD: AI-LIFT.aiLiftRequest.zip_code" output=zip_code'
-                        f'|where log_timestamp > {cls.latest_time_stamp}'
+                        f'|where log_timestamp > "{cls.latest_time_stamp}"'
                         f'|fields - _raw, pii_data'
                         f'|table routing_number, account_number, ssn_tin, first_name, last_name, date_of_birth, address, address2, city, state, zip_code, phone_number, email, ip_address, customer_transaction_id, correlation_id, log_timestamp'
                        )
@@ -125,17 +126,27 @@ class PIIMicroservice:
 
                              ) as response:
                 
-                df = pd.read_csv(io.StringIO(response.text))
+                df = pd.read_csv(io.StringIO(response.text), low_memory=False)
                 
-                # df = df[(df["correlation_id"].notnull()) | (df["correlation_id"] != " ")]
+                df.dropna(subset = ["correlation_id"], inplace = True)
 
-                # cls.df = df
+                df.replace({np.NaN: None}, inplace=True)
 
-                print(df)
+                df['account_number'] = df['account_number'].astype("Int64").astype(str)
+
+                df['routing_number'] = df['routing_number'].astype("Int64").astype(str)
+
+                df['ssn_tin'] = df['ssn_tin'].astype("Int64").astype(str)
+
+                cls.df = df
+
+                print(cls.df)
 
 
     @classmethod
     def push_splunk_logs_to_sql_database(cls):
+
+        print("Insertion of data start")
         
         insert_query = "INSERT INTO dbo.pii_splunk ({}) VALUES ({})".format(",".join(cls.df.columns), ",".join(['?'] * len(cls.df.columns)))
 
@@ -153,10 +164,12 @@ class PIIMicroservice:
 
                 connect.commit()
 
+        print(f"No of rows inserted - {len(cls.df)}")
+
 def run_pii_microservice():
 
-    # PIIMicroservice.get_latest_time_stamp()
-    # PIIMicroservice.get_splunk_logs_through_rest_api()
-    # PIIMicroservice.push_splunk_logs_to_sql_database()
-    pass
+    PIIMicroservice.get_latest_time_stamp()
+    PIIMicroservice.get_splunk_logs_through_rest_api()
+    PIIMicroservice.push_splunk_logs_to_sql_database()
+
 

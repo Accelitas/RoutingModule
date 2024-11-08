@@ -28,6 +28,7 @@ try:
     import contextlib 
     import urllib.parse
     import pandas as pd
+    import numpy as np
     from functools import lru_cache, wraps
     from IPython.display import display     
 except ImportError as error:
@@ -81,7 +82,7 @@ class TelecheckMIMicroservice:
                             f'|spath input=telecheck_mi_data path="AUDIT RECORD: TELECHECK-MI.thirdPartyServiceResponseTime" output=telecheck_time'
                             f'|spath input=telecheck_mi_data path="AUDIT RECORD: TELECHECK-MI.correlationId" output=correlation_id'
                             f'|spath input=telecheck_mi_data path="AUDIT RECORD: TELECHECK-MI.auditTimeStamp" output=log_timestamp'
-                            f'|where log_timestamp > {cls.latest_time_stamp}'
+                            f'|where log_timestamp > "{cls.latest_time_stamp}"'
                             f'|fields - _raw, telecheck_mi_data'
                             f'|table telecheck_time, correlation_id, log_timestamp'
                        )
@@ -111,7 +112,9 @@ class TelecheckMIMicroservice:
 
                              ) as response:
                 
-                df = pd.read_csv(io.StringIO(response.text))
+                df = pd.read_csv(io.StringIO(response.text),low_memory=False)
+
+                df.dropna(subset = ["correlation_id"], inplace = True)
                 
                 df.replace({np.NaN: None}, inplace=True)
 
@@ -119,11 +122,11 @@ class TelecheckMIMicroservice:
 
                 print(cls.df)
 
-                # print(response.text)
-
 
     @classmethod
     def push_splunk_logs_to_sql_database(cls):
+
+        print("Insertion of data start")
         
         insert_query = "INSERT INTO dbo.telecheck_splunk ({}) VALUES ({})".format(",".join(cls.df.columns), ",".join(['?'] * len(cls.df.columns)))
 
@@ -141,11 +144,13 @@ class TelecheckMIMicroservice:
 
                 connect.commit()
 
+        print(f"No of rows inserted - {len(cls.df)}")
+
 def run_telecheck_mi_microservice():
 
-    #TelecheckMIMicroservice.get_latest_time_stamp()
-    # TelecheckMIMicroservice.get_splunk_logs_through_rest_api()
-    # TelecheckMIMicroservice.push_splunk_logs_to_sql_database()
-    pass
+    TelecheckMIMicroservice.get_latest_time_stamp()
+    TelecheckMIMicroservice.get_splunk_logs_through_rest_api()
+    TelecheckMIMicroservice.push_splunk_logs_to_sql_database()
+    
     
 

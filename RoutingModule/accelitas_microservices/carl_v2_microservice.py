@@ -29,6 +29,7 @@ try:
     import contextlib 
     import urllib.parse
     import pandas as pd
+    import numpy as np
     from functools import lru_cache, wraps
     from IPython.display import display     
 except ImportError as error:
@@ -125,7 +126,7 @@ class CarlV2Microservice:
                         f'|spath input=carl_data path="AUDIT RECORD: CARL.carlRequest.requestHeaders.Authorization" output=authentication_type'
                         f'|spath input=carl_data path="AUDIT RECORD: CARL.authorizerResponse.is_authorized" output=authorized'
                         f'|spath input=carl_data path="AUDIT RECORD: CARL.authorizerResponse.Duration" output=authorizer_time'
-                        f'|where log_timestamp > {cls.latest_time_stamp}'
+                        f'|where log_timestamp > "{cls.latest_time_stamp}"'
                         f'|fields - _raw, carl_data'
                         f'|table transaction_id,client_id,servicer_name,customer_name,customer_dba,credential_type,service, service_version, mid, business_rule, model,signal,signal_1, signal_2, signal_3,score_aba,score_acct,score_act,score_conv,score_fpd,valid_aba,valid_routing,status_message,reason_code,reason_code2,reason_code3,reason_code4,reason_code5,correlation_id,valid_institution,valid_transit,log_timestamp,signal_threshold,threshold_result,timestamp,overall_time,client_ip,region,authentication_type,authorized,authorizer_time'
 
@@ -156,7 +157,9 @@ class CarlV2Microservice:
 
                              ) as response:
                 
-                df = pd.read_csv(io.StringIO(response.text))
+                df = pd.read_csv(io.StringIO(response.text), low_memory=False)
+
+                df.dropna(subset = ["correlation_id"], inplace = True)
 
                 df.replace({np.NaN: None}, inplace=True)
                 
@@ -166,9 +169,13 @@ class CarlV2Microservice:
 
                 cls.df = df
 
+                print(cls.df)
+
 
     @classmethod
     def push_splunk_logs_to_sql_database(cls):
+
+        print("Insertion of data start")
         
         insert_query = "INSERT INTO dbo.carl_splunk ({}) VALUES ({})".format(",".join(cls.df.columns), ",".join(['?'] * len(cls.df.columns)))
 
@@ -186,12 +193,14 @@ class CarlV2Microservice:
 
                 connect.commit()
 
+        print(f"No of rows inserted - {len(cls.df)}")
+
 def run_carl_v2_microservice():
 
-    #CarlV2Microservice.get_latest_time_stamp()
-    # CarlV2Microservice.get_splunk_logs_through_rest_api()
-    #CarlV2Microservice.push_splunk_logs_to_sql_database()
-    pass
+    CarlV2Microservice.get_latest_time_stamp()
+    CarlV2Microservice.get_splunk_logs_through_rest_api()
+    CarlV2Microservice.push_splunk_logs_to_sql_database()
+    
 
 
 

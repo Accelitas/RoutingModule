@@ -28,6 +28,7 @@ try:
     import contextlib 
     import urllib.parse
     import pandas as pd
+    import numpy as np
     from functools import lru_cache, wraps
     from IPython.display import display     
 except ImportError as error:
@@ -81,7 +82,7 @@ class DataXMicroservice:
                         f'|spath input=datax_data path="AUDIT RECORD: DATAX.clientId.thirdPartyServiceResponseTime" output=datax_time'
                         f'|spath input=datax_data path="AUDIT RECORD: DATAX.correlationId" output=correlation_id'
                         f'|spath input=datax_data path="AUDIT RECORD: DATAX.auditTimeStap" output=log_timestamp'
-                        f'|where log_timestamp > {cls.latest_time_stamp}'
+                        f'|where log_timestamp > "{cls.latest_time_stamp}"'
                         f'|fields - _raw, datax_data'
                         f'|table datax_time, correlation_id, log_timestamp'
                        )
@@ -111,15 +112,21 @@ class DataXMicroservice:
 
                              ) as response:
                 
-                df = pd.read_csv(io.StringIO(response.text))
+                df = pd.read_csv(io.StringIO(response.text), low_memory=False)
+
+                df.dropna(subset = ["correlation_id"], inplace = True)
                 
                 df.replace({np.NaN: None}, inplace=True)
 
                 cls.df = df
 
+                print(cls.df)
+
 
     @classmethod
     def push_splunk_logs_to_sql_database(cls):
+
+        print("Insertion of data start")
         
         insert_query = "INSERT INTO dbo.datax_splunk ({}) VALUES ({})".format(",".join(cls.df.columns), ",".join(['?'] * len(cls.df.columns)))
 
@@ -137,11 +144,13 @@ class DataXMicroservice:
 
                 connect.commit()
 
+        print(f"No of rows inserted - {len(cls.df)}")
+
 def run_datax_microservice():
 
-    #DataXMicroservice.get_latest_time_stamp()
-    # DataXMicroservice.get_splunk_logs_through_rest_api()
-    # DataXMicroservice.push_splunk_logs_to_sql_database()
-    pass
+    DataXMicroservice.get_latest_time_stamp()
+    DataXMicroservice.get_splunk_logs_through_rest_api()
+    DataXMicroservice.push_splunk_logs_to_sql_database()
+    
 
 

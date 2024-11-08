@@ -28,6 +28,7 @@ try:
     import contextlib 
     import urllib.parse
     import pandas as pd
+    import numpy as np
     from functools import lru_cache, wraps
     from IPython.display import display     
 except ImportError as error:
@@ -84,7 +85,7 @@ class ApimMicroservice:
                         f'|spath input=apim_data path="AUDIT RECORD: CARL.carlRequest.requestHeaders.Authorization" output=authentication_type'
                         f'|spath input=apim_data path="AUDIT RECORD: CARL.correlationId" output=correlation_id'
                         f'|spath input=apim_data path="AUDIT RECORD: CARL.pipelineContext.requestReceivedTimestamp" output=timestamp'
-                        f'|where log_timestamp > {cls.latest_time_stamp}'
+                        f'|where log_timestamp > "{cls.latest_time_stamp}"'
                         f'|fields - _raw, apim_data'
                         f'|table log_timestamp, overall_time, client_ip, region, authentication_type, correlation_id, timestamp'
                        )
@@ -115,15 +116,23 @@ class ApimMicroservice:
                              ) as response:
                 
                 
-                df = pd.read_csv(io.StringIO(response.text))
+                df = pd.read_csv(io.StringIO(response.text), low_memory=False)
+
+                df.dropna(subset = ["correlation_id"], inplace = True)
                 
                 df.replace({np.NaN: None}, inplace=True)
 
+                df["authentication_type"] = df["authentication_type"].apply(lambda x : x.split()[0])
+
                 cls.df = df
+
+                print(cls.df)
 
 
     @classmethod
     def push_splunk_logs_to_sql_database(cls):
+
+        print("Insertion of data start")
         
         insert_query = "INSERT INTO dbo.apim_splunk ({}) VALUES ({})".format(",".join(cls.df.columns), ",".join(['?'] * len(cls.df.columns)))
 
@@ -137,10 +146,12 @@ class ApimMicroservice:
 
                 connect.commit()
 
+        print(f"No of rows inserted - {len(cls.df)}")
+
 def run_apim_microservice():
 
-    # ApimMicroservice.get_latest_time_stamp()
-    # ApimMicroservice.get_splunk_logs_through_rest_api()
-    # ApimMicroservice.push_splunk_logs_to_sql_database()
-    pass
+    ApimMicroservice.get_latest_time_stamp()
+    ApimMicroservice.get_splunk_logs_through_rest_api()
+    ApimMicroservice.push_splunk_logs_to_sql_database()
+    
 
